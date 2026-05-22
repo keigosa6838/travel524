@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxeTransit 5/24 智能隨行 App</title>
+    <style>
+        :root {
+            --bg-color: #0B1325;
+            --card-bg: #1C2541;
+            --text-main: #FFFFFF;
+            --text-sub: #8B9BB4;
+            --accent-green: #00B4D8;
+            --alert-orange: #FF9F1C;
+            --line-color: #3A506B;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #111;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 模擬手機外殼，在網頁上完美居中呈現 */
+        .phone-container {
+            width: 100%;
+            max-width: 414px;
+            height: 100vh;
+            max-height: 896px;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        @media (min-width: 420px) {
+            .phone-container {
+                border-radius: 40px;
+                border: 8px solid #333;
+                height: 812px;
+            }
+        }
+
+        /* 狀態列 */
+        .status-bar {
+            height: 40px;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-sub);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 主內容滾動區 */
+        .app-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px 20px;
+        }
+
+        .app-header {
+            padding: 10px 0;
+            margin-bottom: 15px;
+        }
+        .app-title {
+            color: var(--text-main);
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .app-subtitle {
+            color: var(--text-sub);
+            font-size: 13px;
+            margin: 6px 0 0 0;
+        }
+
+        /* 控制器按鈕 */
+        .test-controller {
+            background: #222;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px dashed #E63946;
+            text-align: center;
+        }
+        .test-btn {
+            background: #E63946;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        /* 動態應變提示 */
+        .alert-banner {
+            background-color: rgba(255, 159, 28, 0.15);
+            border: 1px solid var(--alert-orange);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .alert-title {
+            color: var(--alert-orange);
+            font-weight: bold;
+            font-size: 15px;
+            margin: 0 0 6px 0;
+        }
+        .alert-desc {
+            color: var(--text-main);
+            font-size: 13px;
+            margin: 0 0 12px 0;
+            line-height: 1.4;
+        }
+        .alert-btn {
+            background-color: var(--alert-orange);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        /* 時間軸樣式 */
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background-color: var(--line-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .timeline-badge {
+            position: absolute;
+            left: -21px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--line-color);
+            border: 2px solid var(--bg-color);
+        }
+        .timeline-badge.active {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+        .timeline-badge.alert {
+            background-color: var(--alert-orange);
+            box-shadow: 0 0 8px var(--alert-orange);
+        }
+
+        /* 行程卡片 */
+        .route-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-left: 6px;
+            border: 1px solid transparent;
+            transition: all 0.4s ease;
+        }
+        .route-card.updated {
+            border-color: var(--alert-orange);
+            background-color: rgba(28, 37, 65, 0.8);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .time-text {
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .type-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .tag-walk { background-color: rgba(255,255,255,0.15); color: var(--text-main); }
+        .tag-train { background-color: rgba(0, 180, 216, 0.2); color: var(--accent-green); }
+        .tag-spot { background-color: rgba(141, 153, 174, 0.2); color: #8D99AE; }
+
+        .card-title {
+            color: var(--text-main);
+            font-size: 16px;
+            font-weight: bold;
+            margin: 6px 0;
+        }
+        .card-detail {
+            color: var(--text-sub);
+            font-size: 12px;
+            margin: 4px 0 0 0;
+            line-height: 1.5;
+        }
+        .highlight {
+            color: var(--alert-orange);
+            font-weight: bold;
+        }
+
+        /* 底部導航 */
+        .bottom-nav {
+            height: 65px;
+            border-top: 1px solid var(--line-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: var(--bg-color);
+            padding-bottom: 10px;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-sub);
+            font-size: 11px;
+            text-decoration: none;
+            cursor: pointer;
+            width: 33%;
+        }
+        .nav-item.active {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+        .nav-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        /* 地圖樣式模擬 */
+        .map-box {
+            background: #151E3D;
+            border: 1px solid #3A506B;
+            border-radius: 16px;
+            padding: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--accent-green);
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        <div class="status-bar">
+            <span>10:02 AM</span>
+            <span>5G 🔋</span>
+        </div>
+
+        <div class="app-content">
+            <div class="test-controller" id="test-zone">
+                <button class="test-btn" onclick="simulateDelay()">⚠️ 模擬突發：10:10 中央線發生延誤訊號</button>
+            </div>
+
+            <div class="alert-banner" id="alert-banner">
+                <div class="alert-title">📅 行程全動態重組提示</div>
+                <div class="alert-desc">
+                    偵測到中央線延誤。系統已自動更換接續車次，並將景點時間自動壓縮 <b class="highlight">-8分鐘</b>，以確保您中午 <b class="highlight">12:35 PM</b> 能精準抵達餐廳。
+                </div>
+                <button class="alert-btn" onclick="executeReroute()">確認並套用全新整合路徑</button>
+            </div>
+
+            <div id="page-timeline">
+                <div class="app-header">
+                    <h1 class="app-title">去程智慧時間軸</h1>
+                    <p class="app-subtitle">5月24日 星期日 | 目的地：田後樂食堂</p>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-badge active"></div>
+                        <div class="route-card">
+                            <div class="card-header">
+                                <span class="time-text">10:01 AM</span>
+                                <span class="type-tag tag-walk">🚶‍♂️ 步行</span>
+                            </div>
+                            <div class="card-title">三井花園飯店日本橋普米爾 出發</div>
+                            <p class="card-detail">導航：朝江戸通り前進 ➔ 右轉中央通り，前往神田站南口 (600公尺，步行 9 分鐘)。<br>費用：¥0</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-badge" id="badge-t1"></div>
+                        <div class="route-card" id="card-t1">
+                            <div class="card-header">
+                                <span class="time-text" id="time-t1">10:10 AM</span>
+                                <span class="type-tag tag-train">🚆 JR 中央線</span>
+                            </div>
+                            <div class="card-title" id="title-t1">中央線快速 (往青梅)</div>
+                            <p class="card-detail" id="desc-t1">導航：神田站 (6號月台) 上車 ➔ 西國分寺站下車 (10:55 抵達，共15站)。<br>費用：¥720 (全程共用 IC 卡總額)</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-badge" id="badge-t2"></div>
+                        <div class="route-card" id="card-t2">
+                            <div class="card-header">
+                                <span class="time-text" id="time-t2">10:59 AM</span>
+                                <span class="type-tag tag-train">🚆 JR 武藏野線</span>
+                            </div>
+                            <div class="card-title">武藏野線 各站停車 (往新習志野)</div>
+                            <p class="card-detail" id="desc-t2">轉乘：西國分寺站內走樓梯至 (4號月台) 上車 ➔ 東所澤站下車 (11:10 抵達)。</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-badge" id="badge-spot"></div>
+                        <div class="route-card" id="card-spot">
+                            <div class="card-header">
+                                <span class="time-text" id="time-spot">11:10 AM - 12:30 PM</span>
+                                <span class="type-tag tag-spot">🛍️ 中途下車</span>
+                            </div>
+                            <div class="card-title">所澤櫻花鎮 (角川武藏野博物館)</div>
+                            <p class="card-detail" id="desc-spot">
+                                ⏱️ 預計停留：80 分鐘 (出站步行 380 公尺)<br>
+                                <span class="highlight">🔥 獨家必買商品整合：</span><br>
+                                1. <b>達文西商店</b>：隈研吾設計限定伴手禮、限定藝術書籍。<br>
+                                2. <b>愛埼玉小舖</b>：全東京買不到的埼玉在地奢華精釀啤酒。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-badge"></div>
+                        <div class="route-card">
+                            <div class="card-header">
+                                <span class="time-text">12:35 PM</span>
+                                <span class="type-tag tag-spot">🤝 抵達</span>
+                            </div>
+                            <div class="card-title">正式拜訪：田後樂食堂</div>
+                            <p class="card-detail">準時抵達老友餐廳聚餐，預計停留 2 小時 (12:35 - 14:35)。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-map" style="display: none;">
+                <div class="app-header">
+                    <h1 class="app-title">智慧導航地圖</h1>
+                    <p class="app-subtitle">鐵道網與出站步行導航無縫切換</p>
+                </div>
+                <div class="map-box">
+                    [神田站] ======( JR 中央線快速 )======> [西國分寺站]<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( JR 武藏野線 )<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[東所澤站]<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 🚶‍♂️ 街道引導 (380m)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[📍 所澤櫻花鎮]<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 步行 5 分鐘<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[🏁 田後樂食堂]<br>
+                </div>
+                <p class="card-detail" style="margin-top: 15px;">💡 App 智慧功能：當您下電車跨出車站後，系統會自動將鐵道圖轉化為精準的街道步行導航，並高亮標示出隈研吾大師的巨石博物館位置。</p>
+            </div>
+
+            <div id="page-return" style="display: none;">
+                <div class="app-header">
+                    <h1 class="app-title">回程智慧分流卡片</h1>
+                    <p class="app-subtitle">不走回頭路 | 整合晚餐美食與必買伴手禮</p>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 16px; border-radius: 16px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: var(--accent-green);"><span>14:50 - 15:00 PM</span><span>🚆 JR 武藏野線</span></div>
+                    <div style="font-size: 15px; font-weight: bold; margin: 6px 0; color: #FFF;">從 東所澤站 ➔ 前往 南浦和站</div>
+                    <p class="card-detail">車程僅 10 分鐘 (5站)。費用：¥720 (回程總 IC 卡扣款)。</p>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 16px; border-radius: 16px; margin-bottom: 15px; border-left: 4px solid var(--alert-orange);">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: var(--alert-orange);"><span>15:00 - 18:00 PM (3小時)</span><span>🍱 美食與伴手禮圈</span></div>
+                    <div style="font-size: 15px; font-weight: bold; margin: 6px 0; color: #FFF;">南浦和/浦和中途下車行程</div>
+                    <p class="card-detail" style="color: #E0E0E0;">
+                        🛍️ <b>高級伴手禮導航：</b>指引前往專櫃購買紅遍全日本、外觀如彩色寶石的<b>「彩果的寶石」高級水果果凍</b>與名物十萬石饅頭。<br><br>
+                        🍱 <b>老字號晚餐預約：</b>傍晚 16:30 系統自動為您導航至浦和在地百年名店，大啖正宗肥美、外酥內嫩的<b>「江戶前 浦和鰻魚飯」</b>。
+                    </p>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 16px; border-radius: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: #8D99AE;"><span>18:05 - 18:41 PM</span><span>🚆 JR 京濱東北線</span></div>
+                    <div style="font-size: 15px; font-weight: bold; margin: 6px 0; color: #FFF;">南浦和站 (4號月台) ➔ 直達 神田站</div>
+                    <p class="card-detail">搭乘京濱東北線各站停車（往大船方向），出站後優雅步行 9 分鐘回到三井花園飯店領取行李。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" id="nav-timeline" onclick="showPage('timeline')">
+                <span class="nav-icon">📅</span><span>動態行程</span>
+            </div>
+            <div class="nav-item" id="nav-map" onclick="showPage('map')">
+                <span class="nav-icon">🗺️</span><span>智慧地圖</span>
+            </div>
+            <div class="nav-item" id="nav-return" onclick="showPage('return')">
+                <span class="nav-icon">📊</span><span>回程精算</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 切換頁面邏輯
+        function showPage(page) {
+            document.getElementById('page-timeline').style.display = page === 'timeline' ? 'block' : 'none';
+            document.getElementById('page-map').style.display = page === 'map' ? 'block' : 'none';
+            document.getElementById('page-return').style.display = page === 'return' ? 'block' : 'none';
+
+            document.getElementById('nav-timeline').classList.toggle('active', page === 'timeline');
+            document.getElementById('nav-map').classList.toggle('active', page === 'map');
+            document.getElementById('nav-return').classList.toggle('active', page === 'return');
+        }
+
+        // 模擬延誤訊號
+        function simulateDelay() {
+            document.getElementById('alert-banner').style.display = 'block';
+            document.getElementById('test-zone').style.display = 'none';
+            showPage('timeline');
+            document.querySelector('.app-content').scrollTop = 0;
+        }
+
+        // 執行整合重新規劃邏輯
+        function executeReroute() {
+            document.getElementById('alert-banner').style.display = 'none';
+
+            // 1. 重新精算並重組第一段中央線時間
+            document.getElementById('time-t1').innerText = "10:18 AM";
+            document.getElementById('title-t1').innerHTML = "中央線快速 (往高尾) · <span style='color:#FF9F1C;'>[智慧替代班次]</span>";
+            document.getElementById('desc-t1').innerHTML = "神田站 (6號月台) ➔ 西國分寺站。<br><span style='color:#FF9F1C; font-weight:bold;'>[動態應變] 原班次延誤，系統已自動鎖定此最新替代班次。</span>";
+            document.getElementById('card-t1').classList.add('updated');
+            document.getElementById('badge-t1').classList.add('alert');
+
+            // 2. 連鎖重新推算武藏野線接續時間
+            document.getElementById('time-t2').innerText = "11:07 AM";
+            document.getElementById('desc-t2').innerHTML = "西國分寺站 (4號月台) ➔ 東所澤站 (11:18 抵達)。<br><span style='color:#FF9F1C; font-weight:bold;'>[連動重劃] 轉乘時間已自動重新校正為 4 分鐘，保障流暢度。</span>";
+            document.getElementById('card-t2').classList.add('updated');
+            document.getElementById('badge-t2').classList.add('alert');
+
+            // 3. 智慧調配景點時間，用景點時間填補鐵道延誤，確保中午飯局絕對不遲到
+            document.getElementById('time-spot').innerText = "11:18 AM - 12:30 PM";
+            document.getElementById('desc-spot').innerHTML = "⏱️ <span style='color:#FF9F1C; font-weight:bold;'>[智慧整合] 參觀時間已自動微調壓縮為 72 分鐘 (-8分鐘)</span><br>時間優化後仍十分充裕，依舊可至角川武藏野博物館與達文西商店購買限定商品與精釀啤酒！";
+            document.getElementById('card-spot').classList.add('updated');
+            document.getElementById('badge-spot').classList.add('alert');
+        }
+    </script>
+</body>
+</html>
